@@ -239,6 +239,3 @@ prédiction-affaiblissement-signal-indoor/
 ├── requirements.txt                # Dépendances Python
 └── README.md                       # Ce fichier
 ```
-
-- [Plotly Documentation](https://plotly.com/python/)
-- [Scikit-learn Documentation](https://scikit-learn.org/)
