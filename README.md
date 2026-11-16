@@ -1,241 +1,281 @@
 # 📡 Analyseur de Pathloss Indoor
 
-**Système de Prédiction et d'Optimisation WiFi pour Environnements Intérieurs**
+**Prédiction de l'affaiblissement du signal Wi-Fi et optimisation du placement des points d'accès en environnement intérieur**
 
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.0+-red.svg)](https://streamlit.io)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
+[![Streamlit](https://img.shields.io/badge/Streamlit-app-red.svg)](https://streamlit.io)
+[![XGBoost](https://img.shields.io/badge/ML-XGBoost-orange.svg)](https://xgboost.readthedocs.io)
 
-## 🎯 Objectif du Projet
+## 🎯 Objectif du projet
 
-Ce projet développe une application intelligente capable de :
+À partir d'un simple plan d'étage au format PNG, l'application permet de :
 
-- **Prédire la perte de signal radio (pathloss)** dans des environnements intérieurs complexes à partir de plans architecturaux
-- **Optimiser automatiquement le placement des points d'accès WiFi** pour assurer une couverture optimale
-- **Analyser et visualiser la propagation radio** en 2D et 3D avec prise en compte des obstacles
-- **Réduire les zones d'ombre** et améliorer la qualité de service WiFi indoor
+- **Prédire le pathloss** (perte de signal, en dB) en tout point du bâtiment, en 2D et en 3D (plusieurs étages) ;
+- **Visualiser la couverture** sous forme de cartes de chaleur (2D) et de voxels interactifs (3D) ;
+- **Optimiser le placement des points d'accès (AP)** pour atteindre un taux de couverture visé ;
+- **Simuler avant installation** : repérer les zones d'ombre et estimer le nombre d'AP nécessaires.
 
-## ✨ Fonctionnalités Principales
+Projet réalisé lors d'un stage en Machine Learning (Telcotec, été 2025).
 
-### 🖼️ Traitement d'Image Intelligent
-- **Extraction automatique des murs** à partir de plans PNG
-- **Détection des obstacles** et structures architecturales
-- **Pipeline de traitement** : binarisation, nettoyage morphologique, détection de contours
-- **Visualisation multi-couches** pour validation des résultats
-
-### 🧠 Prédiction de Pathloss Hybride
-- **Modèles ML pré-entraînés** : XGBoost 3D (RMSE: 16.08 dB), Régression 2D (RMSE: 5.92 dB)
-- **Fallback théorique** : Formule de Friis avec atténuations matériaux
-- **Calculs 2D/3D** avec prise en compte des étages et matériaux
-- **Validation automatique** et gestion d'erreurs robuste
-
-### 🎨 Visualisation Avancée
-- **Cartes de chaleur 2D** avec matplotlib
-- **Visualisations 3D interactives** avec Plotly
-- **Rendu des trajets de propagation** et intersections avec obstacles
-- **Classification par zones de qualité** (Excellent/Bon/Faible/Mauvais)
-
-### ⚡ Optimisation Multi-Algorithmes
-- **Algorithme Glouton (Greedy)** : Placement séquentiel avec amélioration marginale
-- **Mélanges Gaussiens (GMM)** : Modélisation probabiliste avec EM
-- **K-means Clustering** : Regroupement géométrique optimisé
-- **Optimiseur Automatique** : Analyse géométrique + clustering adaptatif
-
-## Watch this video
+## 🎬 Démonstration
 
 [![Watch the video on YouTube](https://img.youtube.com/vi/Kkl2KkTb_hc/0.jpg)](https://www.youtube.com/watch?v=Kkl2KkTb_hc)
 
-Or click the link to view it: [YouTube Video](https://www.youtube.com/watch?v=Kkl2KkTb_hc)
+Lien direct : [YouTube Video](https://www.youtube.com/watch?v=Kkl2KkTb_hc)
 
+## ✨ Fonctionnalités
 
-## 🏗️ Architecture du Système
+### 🖼️ Extraction des murs depuis le plan
+- Conversion en niveaux de gris, binarisation (seuil 127) et inversion (murs en blanc) ;
+- Nettoyage morphologique (fermeture puis ouverture, noyau 3×3) ;
+- Détection des contours et filtrage par aire, périmètre et compacité pour éliminer le bruit ;
+- Mise à l'échelle pixel → mètre à partir des dimensions réelles saisies par l'utilisateur.
+
+### 🧠 Prédiction hybride du pathloss
+- **Modèle ML prioritaire** : XGBoost (un modèle 2D et un modèle 3D) ;
+- **Repli théorique** si le modèle est absent ou renvoie une valeur invalide : formule de Friis avec atténuation par mur (6 dB par défaut) et par étage (15 dB par défaut) ;
+- **Comptage des murs** entre deux points par le tracé d'une ligne de Bresenham : une entrée dans un mur compte pour un seul mur, quelle que soit son épaisseur.
+
+### 🎨 Visualisation
+- Cartes de chaleur 2D (Matplotlib) ;
+- Visualisations 3D interactives (Plotly) ;
+- Classification par zones de qualité : Excellent / Bon / Faible / Mauvais.
+
+### ⚡ Optimisation du placement des AP
+- **K-means** : regroupe les points à couvrir et place un AP au centre de chaque groupe ;
+- **GMM + EM** (mélange gaussien) : modélise la distribution spatiale des points à couvrir ;
+- **Greedy (glouton)** : ajoute les AP un par un en choisissant celui qui améliore le plus la couverture réelle ;
+- **Optimisation automatique** : heuristique géométrique (analyse de l'étalement des récepteurs) combinée à du K-means pour estimer le nombre d'AP et leurs positions.
+
+Dans tous les cas, les positions qui tombent dans un mur sont déplacées vers la zone libre la plus proche, puis la configuration est évaluée avec le modèle de pathloss.
+
+## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Interface Streamlit                     │
-│                     (8 onglets)                           │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-┌─────────────────────┼───────────────────────────────────────┐
-│  ImageProcessor     │  PathlossCalculator  │  Visualizer    │
-│  ├─ Binarisation    │  ├─ ML Predictor     │  ├─ 2D Plots   │
-│  ├─ Morphologie     │  ├─ Theoretical      │  ├─ 3D Models  │
-│  └─ Détection       │  └─ Hybrid Logic     │  └─ Heatmaps   │
-└─────────────────────┼───────────────────────────────────────┘
-                      │
-┌─────────────────────┼───────────────────────────────────────┐
-│           Optimiseurs de Placement                         │
-│  ├─ GreedyOptimizer3D    ├─ GMMOptimizer3D                │
-│  ├─ AccessPointOptimizer ├─ AutoOptimizer3D               │
-│  └─ HeatmapGenerator     └─ Visualization3D               │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                    Interface Streamlit (app.py)              │
+│                           8 onglets                          │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+┌──────────────────────────┼───────────────────────────────────┐
+│  ImageProcessor          │  Prédiction du pathloss           │
+│  ├─ Binarisation         │  ├─ Modèle ML 2D / 3D (XGBoost)   │
+│  ├─ Morphologie          │  ├─ Repli théorique (Friis)       │
+│  └─ Contours / murs      │  └─ Comptage des murs (Bresenham) │
+└──────────────────────────┼───────────────────────────────────┘
+                           │
+┌──────────────────────────┼───────────────────────────────────┐
+│  Heatmaps 2D / 3D        │  Optimiseurs de placement         │
+│  Visualisations          │  K-means · GMM · Greedy · Auto    │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## 🚀 Installation
 
 ### Prérequis
-- Python 3.8+
-- pip (gestionnaire de paquets Python)
+- Python 3.10 ou supérieur (le projet a été développé sous Python 3.12)
+- pip
 
-### Installation des dépendances
+### Mise en route
 
 ```bash
-# Cloner le repository
-git clone https://github.com/username/prediction-affaiblissement-signal-indoor.git
-cd prediction-affaiblissement-signal-indoor
-
-# Installer les dépendances
+git clone https://github.com/kallelsaba/Pathloss_Prediction_Indoor.git
+cd Pathloss_Prediction_Indoor
 pip install -r requirements.txt
 ```
 
-### Dépendances principales
-- `streamlit` - Interface web interactive
-- `opencv-python` - Traitement d'image
-- `numpy` - Calculs numériques
-- `matplotlib` - Visualisations 2D
-- `plotly` - Visualisations 3D interactives
-- `scikit-learn` - Algorithmes ML et clustering
-- `pandas` - Manipulation de données
-- `Pillow` - Traitement d'images
-- `scikit-image` - Traitement d'image avancé
+### Dépendances
+
+| Paquet | Utilité |
+|---|---|
+| `streamlit` | Interface web interactive |
+| `opencv-python` | Binarisation, morphologie, contours |
+| `scikit-image` | Analyse d'image complémentaire |
+| `Pillow` | Chargement des images |
+| `numpy`, `pandas`, `scipy` | Calcul numérique, données, interpolation |
+| `matplotlib` | Cartes 2D |
+| `plotly` | Visualisations 3D |
+| `scikit-learn` | K-means, GMM, métriques, `GridSearchCV` |
+| `xgboost` | Chargement et exécution des modèles XGBoost |
+| `joblib` | Chargement du modèle 2D |
+
+> ⚠️ Le fichier `requirements.txt` doit contenir **tous** les paquets ci-dessus. Les modèles sont chargés au format `pickle`/`joblib` : ne chargez que des fichiers dont vous maîtrisez la provenance. Selon la version de XGBoost installée, un avertissement de compatibilité peut apparaître au chargement des modèles sérialisés avec une version plus ancienne.
 
 ## 💻 Utilisation
-
-### Lancement de l'application
 
 ```bash
 streamlit run app.py
 ```
 
-L'application sera accessible à l'adresse : `http://localhost:8501`
+L'application est accessible sur `http://localhost:8501`.
 
-### Interface utilisateur (8 onglets)
+### Format du plan
+- Image **PNG**, fond blanc, **murs sombres** (noir de préférence) ;
+- Contours nets, pas de texte ni d'annotations parasites, résolution suffisante.
 
-1. **📊 Pathloss 2D** - Analyse de propagation en 2D
-2. **📈 Pathloss 3D** - Analyse de propagation en 3D
-3. **🔥 Heatmap 2D** - Cartes de chaleur 2D
-4. **🌡️ Heatmap 3D** - Visualisations thermiques 3D
-5. **🎯 Optimisation 2D** - Placement optimal 2D
-6. **🎯 Optimisation 3D** - Placement optimal 3D
-7. **⚡ Auto-Optimisation 2D** - Optimisation automatique 2D
-8. **⚡ Auto-Optimisation 3D** - Optimisation automatique 3D
+### Les 8 onglets
+
+1. **Calcul Pathloss 2D** : pathloss entre un émetteur et un récepteur ;
+2. **Calcul Pathloss 3D** : idem avec plusieurs étages ;
+3. **Génération Heatmap 2D** ;
+4. **Génération Heatmap 3D** ;
+5. **Optimisation Wifi 2D** : K-means, GMM + EM ou Greedy ;
+6. **Optimisation Wifi 3D** : K-means, GMM ou Greedy ;
+7. **Optimisation Automatique 2D** ;
+8. **Optimisation Automatique 3D**.
 
 ### Workflow typique
 
-1. **Upload du plan** : Charger un plan architectural (format PNG)
-2. **Configuration** : Définir dimensions, fréquence, puissance émetteur
-3. **Traitement** : Extraction automatique des murs et obstacles
-4. **Analyse** : Calcul du pathloss et génération des visualisations
-5. **Optimisation** : Placement optimal des points d'accès
-6. **Export** : Sauvegarde des résultats et configurations
+1. Charger le plan PNG ;
+2. Saisir les dimensions réelles, la fréquence, la puissance d'émission ;
+3. L'application extrait les murs ;
+4. Calculer le pathloss ou générer les cartes de chaleur ;
+5. Lancer l'optimisation (ou l'optimisation automatique) pour obtenir les positions des AP.
 
-## 🔬 Algorithmes et Modèles
+## 🔬 Modèles et algorithmes
 
-### Modèles de Prédiction ML
+### Modèles de prédiction ML
 
-#### Modèle 2D
-- **Type** : Régression linéaire
-- **Features** : [distance, num_walls, frequency]
-- **Performance** : RMSE = 5.92 dB, R² = 0.8515
-- **Dataset** : 160,000 échantillons d'entraînement
+Les métriques ci-dessous proviennent des notebooks et des fichiers de modèle du dépôt. Elles sont mesurées sur des **jeux de test issus de données générées** (voir « Données » plus bas).
 
-#### Modèle 3D
-- **Type** : XGBoost
-- **Features** : [distance, numwall, etage, frequence]
-- **Performance** : RMSE = 16.08 dB, MAE = 8.99 dB, R² = 0.8662
-- **Dataset** : 200,000 échantillons total
+| | Modèle 2D | Modèle 3D |
+|---|---|---|
+| **Type** | XGBoost (`XGBRegressor`) | XGBoost (`XGBRegressor`) |
+| **Variables d'entrée** | `num_walls`, `distance`, `frequency` | `distance`, `numwall`, `etage`, `frequence` |
+| **Fichier du modèle** | `pathloss_predictor.pkl` | `xgboost_radio_propagation_model.pkl` |
+| **Taille du jeu de données** | 5 000 échantillons (4 000 entraînement / 1 000 test) | 200 000 échantillons (160 000 entraînement / 40 000 test) |
+| **R² (test)** | 0,8515 | 0,8662 |
+| **MAE (test)** | 5,92 dB | 8,99 dB |
+| **RMSE (test)** | ≈ 7,5 dB | 16,08 dB |
+| **Validation croisée (5 plis)** | R² = 0,847 ± 0,005 | RMSE moyen = 15,93 ± 0,22 dB |
+| **Recherche d'hyperparamètres** | `GridSearchCV` : 2 916 combinaisons × 5 plis | `GridSearchCV` |
+| **Hyperparamètres retenus** | profondeur 3, 100 arbres, taux d'apprentissage 0,1, `subsample` 0,9, `colsample_bytree` 0,8, `reg_lambda` 2 | profondeur 5, 100 arbres, taux d'apprentissage 0,1, `colsample_bytree` 0,8, `reg_lambda` 1,5 |
 
-### Formules Théoriques
+**Importance des variables (modèle 3D)** : étage 61 %, murs 32 %, distance 6 %, fréquence 0,6 %.
 
-#### Formule de Friis (espace libre)
+**Référence linéaire (3D)** : une régression linéaire (`model_3d/model regression/`) atteint R² = 0,829 et RMSE = 18,16 dB. Elle sert de référence interprétable (coefficients lisibles) et n'est pas utilisée par l'application.
+
+### Données
+
+- **2D** : jeu de 5 000 échantillons généré dans le notebook `model_2d/model+data2d.ipynb` avec une formule de propagation inspirée de l'ITU-R P.1238 et un bruit de type shadowing (valeurs limitées à 30–150 dB ; fréquences 900, 1 800, 2 400, 5 000 et 5 800 MHz).
+- **3D** : fichier `indoor_pathloss_dataset.csv` (200 000 lignes, colonnes `distance`, `numwall`, `etage`, `frequence`, `pathloss`), fréquences 2 400, 2 450, 5 000, 5 200, 5 500 et 5 800 MHz. Jeu de données généré, non issu de mesures sur le terrain.
+
+L'interface propose les fréquences 2 400 MHz et 5 000 MHz.
+
+### Formules théoriques (repli)
+
+**Friis, espace libre**
 ```
-PL_free = 20 × log₁₀(d) + 20 × log₁₀(f) + 32.45
-```
-
-#### Pathloss avec obstacles
-```
-PL_total = PL_free + N_walls × A_wall + N_floors × A_floor
-```
-
-Où :
-- `d` : distance en km
-- `f` : fréquence en MHz
-- `N_walls` : nombre de murs traversés
-- `A_wall` : atténuation par mur (6 dB par défaut)
-- `N_floors` : différence d'étages
-- `A_floor` : atténuation par étage (15 dB par défaut)
-
-### Algorithmes d'Optimisation
-
-#### 1. Algorithme Glouton (Greedy)
-```python
-while couverture < seuil_min and nb_aps < max_aps:
-    meilleur_gain = 0
-    for position in positions_candidates:
-        gain = calculer_gain_couverture(position)
-        if gain > meilleur_gain:
-            meilleure_position = position
-    placer_ap(meilleure_position)
+PL_libre = 20 × log₁₀(d) + 20 × log₁₀(f) + 32,45
 ```
 
-#### 2. Mélanges Gaussiens (GMM)
-```python
-gmm = GaussianMixture(n_components=num_aps)
-gmm.fit(coverage_points)
-centers = gmm.means_
-for center in centers:
-    adjusted_pos = adjust_for_walls(center)
-    ap_positions.append(adjusted_pos)
+**Avec obstacles**
+```
+PL_total = PL_libre + N_murs × A_mur + N_étages × A_étage
 ```
 
-#### 3. K-means Clustering
-```python
-kmeans = KMeans(n_clusters=num_aps, init='k-means++')
-cluster_centers = kmeans.fit(points).cluster_centers_
-for center in cluster_centers:
-    ap_positions.append(adjust_position(center))
+où `d` est la distance en km, `f` la fréquence en MHz, `A_mur` l'atténuation par mur (6 dB par défaut) et `A_étage` l'atténuation par étage (15 dB par défaut).
+
+### Algorithmes d'optimisation
+
+Le signal reçu en un point est `P_reçue = P_émission − pathloss` (20 dBm d'émission par défaut). Un point est **couvert** si `P_reçue` dépasse le **seuil de signal minimal** (en dBm, réglable). L'objectif est d'atteindre un pourcentage de couverture minimal, avec un nombre maximal d'AP.
+
+#### 1. Greedy (glouton)
+1. Générer des positions candidates (zones denses, grille stratégique, centre de chaque étage) et écarter celles situées dans un mur ;
+2. À chaque tour, évaluer chaque candidat avec les AP déjà placés et retenir celui qui augmente le plus la couverture ;
+3. Écarter les candidats trop proches de l'AP choisi ;
+4. S'arrêter quand l'objectif est atteint, que le nombre maximal d'AP est atteint, ou que le gain devient négligeable.
+
+Le score pénalise le nombre d'AP. Le glouton ne garantit pas l'optimum, mais donne une bonne approximation à un coût raisonnable.
+
+#### 2. GMM + EM
+Un mélange gaussien est ajusté sur les points à couvrir ; les moyennes des composantes deviennent les positions des AP. Plusieurs nombres de composantes sont essayés jusqu'à atteindre la couverture visée. Contrairement au K-means, l'affectation est probabiliste et les composantes peuvent être allongées.
+
+#### 3. K-means
+Les points à couvrir sont regroupés en *k* groupes (initialisation k-means++) ; un AP est placé au centre de chaque groupe.
+
+#### 4. Optimisation automatique
+Estime le nombre d'AP à partir de l'étalement géométrique des récepteurs, puis place les AP par K-means. Ce n'est pas une descente de gradient.
+
+> Les centres obtenus par K-means ou GMM sont purement géométriques : ils ne tiennent pas compte de l'atténuation réelle. C'est pourquoi ils sont ajustés (éloignés des murs) puis évalués avec le modèle de pathloss.
+
+## 📊 Qualité du signal
+
+Seuils appliqués au pathloss pour la classification des zones (modifiables dans l'interface) :
+
+| Classe | Pathloss |
+|---|---|
+| Excellent | ≤ 50 dB |
+| Bon | 50 – 70 dB |
+| Faible | 70 – 90 dB |
+| Mauvais | > 90 dB |
+
+
+## 🛠️ Structure du projet
+
+```
+Pathloss_Prediction_Indoor/
+├── app.py                              # Application Streamlit (8 onglets)
+├── image_processor.py                  # Extraction des murs depuis le plan
+├── pathloss_calculator.py              # Calcul de pathloss 2D
+├── pathloss_calculator_3d.py           # Calcul de pathloss 3D
+├── ml_pathloss_predictor_2d.py         # Prédicteur ML 2D
+├── ml_pathloss_predictor_3d.py         # Prédicteur ML 3D
+├── visualization.py                    # Visualisations 2D
+├── visualization_3d.py                 # Visualisations 3D
+├── heatmap_generator.py                # Cartes de chaleur 2D
+├── heatmap_generator_3d.py             # Cartes de chaleur 3D
+├── access_point_optimizer.py           # Optimiseur K-means (2D / 3D)
+├── access_point_optimizer_2d_fixed.py  # Variante 2D
+├── greedy_optimizer.py                 # Optimiseur glouton 2D
+├── greedy_optimizer_3d.py              # Optimiseur glouton 3D
+├── gmm_optimizer.py                    # Optimiseur GMM 2D
+├── gmm_optimizer_3d.py                 # Optimiseur GMM 3D
+├── auto_optimizer_2d.py                # Optimisation automatique 2D
+├── auto_optimizer_3d.py                # Optimisation automatique 3D
+├── auto_optimization_interface.py      # Interface de l'optimisation auto 2D
+├── auto_optimization_interface_3d.py   # Interface de l'optimisation auto 3D
+├── pathloss_predictor.pkl              # Modèle 2D chargé par l'application
+├── xgboost_radio_propagation_model.pkl # Modèle 3D chargé par l'application
+├── model_2d/                           # Entraînement du modèle 2D
+│   ├── model+data2d.ipynb              #   génération des données + XGBoost
+│   ├── 2d_enriched.ipynb               #   essai exploratoire (données enrichies)
+│   └── pathloss_predictor.pkl
+├── model_3d/
+│   ├── model xgboost/                  # Entraînement du modèle 3D
+│   │   ├── model_xgboost.ipynb
+│   │   ├── indoor_pathloss_dataset.csv
+│   │   ├── model_summary.txt
+│   │   ├── README_model_info.md
+│   │   └── xgboost_radio_propagation_model.pkl
+│   └── model regression/               # Référence : régression linéaire
+│       ├── regression_pathloss.ipynb
+│       ├── indoor_pathloss_dataset.csv
+│       └── linear_regression_model.pkl
+├── test-model/                         # Notebook et copies de modèles pour tests
+├── plan2d/                             # Plan d'exemple (Home 2d.png)
+├── rapport_projet_pathloss.tex         # Rapport LaTeX
+├── styles.css                          # Style de l'interface
+├── requirements.txt
+└── README.md
 ```
 
-## 📊 Résultats et Performance
+## 🔁 Reproduire l'entraînement
 
-### Métriques de Qualité
-- **Excellent** : Pathloss ≤ 50 dB
-- **Bon** : 50 < Pathloss ≤ 70 dB
-- **Faible** : 70 < Pathloss ≤ 90 dB
-- **Mauvais** : Pathloss > 90 dB
+1. **Modèle 2D** : ouvrir `model_2d/model+data2d.ipynb` (génération du jeu de 5 000 échantillons, `GridSearchCV`, évaluation, export du `.pkl`).
+2. **Modèle 3D** : ouvrir `model_3d/model xgboost/model_xgboost.ipynb` (chargement du CSV de 200 000 lignes, séparation 80/20, recherche d'hyperparamètres, validation croisée, export du `.pkl`).
+3. **Référence linéaire** : `model_3d/model regression/regression_pathloss.ipynb`.
+4. Copier les fichiers `.pkl` produits à la racine du projet : l'application les y cherche en premier.
 
-### Cas d'Usage
-- **Appartements et bureaux** : Optimisation WiFi domestique/professionnel
-- **Hôpitaux et écoles** : Couverture critique avec contraintes spécifiques
-- **Centres commerciaux** : Couverture large surface avec obstacles complexes
-- **Simulation pré-installation** : Validation avant déploiement réel
+## 🧭 Cas d'usage
 
-## 🛠️ Structure du Projet
+- Appartements et bureaux : planification Wi-Fi domestique ou professionnelle ;
+- Écoles, hôpitaux : repérage des zones d'ombre ;
+- Locaux multi-étages : estimation du nombre d'AP avant déploiement ;
+- Simulation pré-installation : comparer plusieurs scénarios sans se déplacer.
 
-```
-prédiction-affaiblissement-signal-indoor/
-├── app.py                          # Application Streamlit principale
-├── image_processor.py              # Traitement et analyse d'images
-├── pathloss_calculator.py          # Calculateur pathloss 2D
-├── pathloss_calculator_3d.py       # Calculateur pathloss 3D
-├── ml_pathloss_predictor_2d.py     # Prédicteur ML 2D
-├── ml_pathloss_predictor_3d.py     # Prédicteur ML 3D
-├── visualization.py                # Visualisations 2D
-├── visualization_3d.py             # Visualisations 3D
-├── heatmap_generator.py            # Générateur heatmaps 2D
-├── heatmap_generator_3d.py         # Générateur heatmaps 3D
-├── greedy_optimizer_3d.py          # Optimiseur glouton
-├── gmm_optimizer_3d.py             # Optimiseur GMM
-├── auto_optimizer_3d.py            # Optimiseur automatique
-├── access_point_optimizer.py       # Orchestrateur optimisation
-├── model_2d/                       # Modèles ML 2D
-│   ├── pathloss_predictor.pkl
-│   └── model_summary.txt
-├── model_3d/                       # Modèles ML 3D
-│   ├── xgboost_radio_propagation_model.pkl
-│   └── README_model_info.md
-├── rapport/                        # Documentation LaTeX
-│   └── rapport.tex
-├── requirements.txt                # Dépendances Python
-└── README.md                       # Ce fichier
-```
+## 👤 Auteurs
+
+**Saba Kallel** — [GitHub](https://github.com/kallelsaba) · [LinkedIn](https://www.linkedin.com/in/saba-kallel-4219b6276/)
+
+**Yessin** — [GitHub](https://github.com/yessineabdelmaksoud) · [LinkedIn](https://www.linkedin.com/in/yessine-abdelmaksoud-a63b27270/)
