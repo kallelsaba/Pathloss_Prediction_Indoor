@@ -278,4 +278,4 @@ Pathloss_Prediction_Indoor/
 
 **Saba Kallel** — [GitHub](https://github.com/kallelsaba) · [LinkedIn](https://www.linkedin.com/in/saba-kallel-4219b6276/)
 
-**Yessin** — [GitHub](https://github.com/yessineabdelmaksoud) · [LinkedIn](https://www.linkedin.com/in/yessine-abdelmaksoud-a63b27270/)
+**Yessine Abdelmaksoud** — [GitHub](https://github.com/yessineabdelmaksoud) · [LinkedIn](https://www.linkedin.com/in/yessine-abdelmaksoud-a63b27270/)
